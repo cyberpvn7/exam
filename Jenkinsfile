@@ -7,7 +7,9 @@ pipeline {
                cleanWs()
 	       echo "pull repo"
  	       sh "git clone https://github.com/cyberpvn7/exam"    
-            }
+           sh "docker login -u pavank28 --password-stdin"
+		   sh "ls"
+			}
         }
     }
 }
