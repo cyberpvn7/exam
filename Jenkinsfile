@@ -14,8 +14,12 @@ pipeline {
 			   	usernameVarible:'dock',
 			   	passwordVarible:'dock_pass'
 		   	)]){
-           			sh "echo "$dock_pass" | docker login -u "$dock" --password-stdin"
-		   		}
+           			sh
+			   """
+			   echo "$dock_pass" | docker login -u "$dock" --password-stdin
+			   """
+		   		
+				}
 			sh "docker build -t pavank28/apan_py:latest ."
 	        sh "docker run -it pavank28/apan_py:latest"
 	        sh "docker push pavank28/apan_py:latest"
