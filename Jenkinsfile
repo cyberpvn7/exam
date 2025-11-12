@@ -24,7 +24,7 @@ pipeline {
                 sh 'echo $dockerHubPass | docker login -u $dockerHubUser --password-stdin'
 				}
 			sh "pwd"
-			// sh "docker build -t pavank28/apan_py:latest ."
+			sh "docker build -t pavank28/apan_py:latest ./exam"
 	  //       sh "docker run -it pavank28/apan_py:latest"
 	  //       sh "docker push pavank28/apan_py:latest"
 			}
