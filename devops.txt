@@ -1,0 +1,552 @@
+====================================================================
+                            Devops
+====================================================================
+
+
+===========================
+1) SIMPLE DOCKER COMMANDS
+===========================
+
+Run basic containers:
+  docker run hello-world
+  docker run nginx
+  docker run httpd   # apache
+
+Expose ports (host:container):
+  docker run -d -p 8080:80 nginx
+  docker run -d -p 9090:80 httpd
+
+Check:
+  curl localhost:8080
+
+Useful:
+  docker ps
+  docker stop <name>
+  docker rm <name>
+  docker logs <name>
+  docker exec -it <name> bash    # or sh
+
+
+===========================
+1.1) PULL / TAG / RUN / PUSH IMAGES
+===========================
+
+Pulling images:
+  docker pull alpine
+  docker pull alpine:3
+
+Run pulled image:
+  docker run -it alpine:3 sh
+
+Tag image:
+  docker tag alpine:3 myalpine:v1
+
+List images:
+  docker images
+
+Push to Docker Hub:
+  docker login
+  docker tag myalpine:v1 pavank28/myalpine:v1
+  docker push pavank28/myalpine:v1
+  docker pull pavank28/myalpine:v1   # verify
+
+Local private registry:
+  docker run -d -p 5000:5000 --name myregistry registry:2
+  docker tag myalpine:v1 localhost:5000/myalpine:v1
+  docker push localhost:5000/myalpine:v1
+  docker pull localhost:5000/myalpine:v1
+
+
+===========================
+2) SIMPLE DOCKERFILES
+===========================
+
+C Program:
+-----------
+Dockerfile:
+  FROM gcc:latest
+  WORKDIR /app
+  COPY . /app
+  RUN gcc -o output hello.c
+  CMD ["./output"]
+
+Build:
+  docker build -t pavank28/c_lang:1.0 .
+Run:
+  docker run pavank28/c_lang:1.0
+
+Java Program:
+-------------
+Dockerfile:
+  FROM openjdk:17-jdk-slim
+  WORKDIR /app
+  COPY . /app
+  RUN javac filename.java
+  CMD ["java","filename"]
+
+Python Program:
+---------------
+Dockerfile:
+  FROM python:3.9-slim-buster
+  WORKDIR /app
+  COPY . /app
+  CMD ["python3","filename.py"]
+
+
+===========================
+3) DOCKER VOLUME (NGINX)
+===========================
+
+Run nginx with local folder:
+  docker run -p 2222:80 --name myng \
+    -v ${PWD}/ng_file/:/usr/share/nginx/html \
+    -d nginx
+
+Check:
+  curl localhost:2222
+
+
+===========================
+4) MYSQL WITH VOLUME
+===========================
+
+Pull & create volume:
+  docker pull mysql:8
+  docker volume create mysql-data
+
+Run MySQL:
+  docker run -d --name mysql1 \
+    -e MYSQL_ROOT_PASSWORD=root123 \
+    -e MYSQL_DATABASE=exam \
+    -v mysql-data:/var/lib/mysql \
+    -p 3306:3306 \
+    mysql:8
+
+Enter MySQL:
+  docker exec -it mysql1 mysql -uroot -p
+  # password: root123
+
+Inside mysql> :
+  use exam;
+  create table student(name varchar(80), roll_no int);
+  insert into student values("Boss",11),("Don",33);
+  select * from student;
+
+Create MySQL user:
+  create user 'apnauser'@'%' identified by 'apnapass123';
+  grant all privileges on exam.* to 'apnauser'@'%';
+  flush privileges;
+
+Test new user:
+  exit
+  docker exec -it mysql1 mysql -uapnauser -p
+  # enter apnapass123
+  use exam;
+  select * from student;
+
+Stop & remove:
+  docker stop mysql1
+  docker rm mysql1
+
+Re-run with same volume:
+  docker run -d --name mysql2 \
+    -e MYSQL_ROOT_PASSWORD=root123 \
+    -e MYSQL_DATABASE=exam \
+    -v mysql-data:/var/lib/mysql \
+    -p 3306:3306 \
+    mysql:8
+
+Verify data persists:
+  docker exec -it mysql2 mysql -uapnauser -p
+  # enter apnapass123
+  use exam;
+  select * from student;
+
+
+===========================
+5) DOCKER COMPOSE (SHORT + YOUR EXAMPLE)
+===========================
+
+How to make a docker-compose file (very short):
+  1) Create project folder:
+       mkdir myapp && cd myapp
+
+  2) (Optional) Create Dockerfile if custom image needed.
+
+  3) Create docker-compose.yml:
+       services:
+         myservice:
+           build: .
+           container_name: test1
+           ports:
+             - "8080:80"
+           volumes:
+             - .:/app
+           environment:
+             - MY_VAR=hello
+
+  4) Start:
+       docker compose up
+
+  5) Stop:
+       docker compose down
+
+  6) Rebuild if Dockerfile changed:
+       docker compose up --build
+
+  7) Useful:
+       docker compose ps
+       docker compose exec myservice bash
+
+Your original example (copy these 3 files into a folder and run `docker compose up`):
+
+File: hello.py
+  print("hilo dost")
+
+File: Dockerfile
+  FROM python:3.9-slim-buster
+  WORKDIR /app
+  COPY . /app
+  CMD ["python3","hello.py"]
+
+File: docker-compose.yml
+  services:
+    python-helo:
+      build: .
+      container_name: mypy
+      command: ["python3","hello.py"]
+
+
+===========================
+6) DOCKER SWARM
+===========================
+
+Init service:
+  docker service create nginx
+
+List:
+  docker service ls
+
+Service tasks:
+  docker service ps <id>
+
+Scale:
+  docker service update <id> --replicas 10
+
+Remove:
+  docker service rm <id>
+
+Custom nginx image + swarm:
+  Dockerfile:
+    FROM nginx
+    COPY index.html /usr/share/nginx/html/index.html
+
+  docker build -t pavank28/site:latest .
+  docker run -d -p 8888:80 pavank28/site:latest
+  docker service create --name ng_swarm --replicas 3 -p 8880:80 pavank28/site:latest
+
+
+===========================
+7) KUBERNETES (microk8s) BASICS
+===========================
+
+Install microk8s (Ubuntu):
+  sudo apt install snapd
+  sudo snap install microk8s --classic
+  echo "alias kubectl='microk8s kubectl'" >> ~/.bashrc
+  source ~/.bashrc
+
+Check:
+  kubectl get nodes
+
+Create pod:
+  kubectl run apna-nginx --image nginx
+  kubectl get pods
+
+
+===========================
+8) K8S DEPLOYMENT – NGINX (SIMPLE)
+===========================
+
+Create:
+  kubectl create deployment apna-deploy-nginx --image nginx
+
+Scale:
+  kubectl scale deployment apna-deploy-nginx --replicas 5
+
+Expose:
+  kubectl expose deployment apna-deploy-nginx --type=NodePort --port=80
+
+  ------ ----------
+  Using deployement:
+  -----------------
+
+   ~~~~~
+   nginx:
+   ~~~~~
+    $ kubectl create deployment apna-deploy-nginx --image nginx
+    
+    $ kubectl get pods
+
+    $ kubectl scale deployment apna-deploy-nginx --replicas 5
+
+    $ kubectl get pods
+
+
+   ~~~~~~
+   apache:
+   ~~~~~~
+
+    $ kubectl create deployment apna-deploy-apache --image httpd
+   
+    $ kubectl get pods
+
+    $ kubectl scale deployment apna-deploy-apache --replicas 2
+
+    $ kubectl get pods
+
+    $ kubectl get deployment
+
+    $ kubectl get replicaset
+
+    $ kubectl expose deployment apna-deploy-apache --type=NodePort --port=80
+
+    $ kubectl get svc
+
+    $ curl localhost:31293
+
+
+
+===========================
+9) K8S: PHP + APACHE DEPLOYMENT (5 PODS) — MINIMAL
+===========================
+
+File: php-apache.yaml  (SINGLE FILE contains both objects)
+
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-apache
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: php-apache
+  template:
+    metadata:
+      labels:
+        app: php-apache
+    spec:
+      containers:
+      - name: php-apache-container
+        image: php:8.1-apache
+        ports:
+        - containerPort: 80
+
+# Service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-apache-service
+spec:
+  selector:
+    app: php-apache
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+Apply:
+  kubectl apply -f php-apache.yaml
+
+Port forward (map local 8080 to service 80):
+  kubectl port-forward svc/php-apache-service 8080:80
+  # then open http://localhost:8080
+
+Check:
+  kubectl get pods
+  kubectl get svc
+
+
+===========================
+10) JENKINS PIPELINE (SIMPLE)
+===========================
+
+Install:
+  sudo apt install fontconfig openjdk-17-jre openjdk-17-jdk -headless
+  install jenkins from jenkins.io
+  sudo systemctl enable jenkins
+  sudo systemctl start jenkins
+
+Initial password:
+  sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
+Plugins:
+  - GitHub integration
+  - Docker
+
+Sample Jenkinsfile:
+  pipeline {
+    agent any
+    stages {
+      stage('pull') {
+        steps {
+          cleanWs()
+          sh "git clone https://github.com/cyberpvn7/exam"
+          sh "cd exam && docker build -t pavank28/apan_py:latest ."
+          sh "docker run --rm pavank28/apan_py:latest"
+          withCredentials([usernamePassword(
+            credentialsId:'dockercred',
+            usernameVariable:'dockerHubUser',
+            passwordVariable:'dockerHubPass')]) {
+              sh 'echo $dockerHubPass | docker login -u $dockerHubUser --password-stdin'
+              sh "docker push pavank28/apan_py:latest"
+          }
+        }
+      }
+    }
+  }
+
+Job Setup:
+  Jenkins → New Item → Pipeline → SCM → Git URL → */main → Save → Build
+
+
+
+----------------------------------------------------------------------------------------
+---
+AWS:
+```
+
+EC2 => search EC2 -> instances -> launch -> name it -> select key -> select SSH ani kahlche 3
+-> launch.
+
+after EC2 launch select it and click connect -> Linux shell yeil.
+
+on Linux:
+
+Q) nginx site:
+
+$ sudo yum install nginx
+$ sudo nano /usr/share/nginx/html/index.html
+$ sudo systemctl enable nginx
+$ sudo systemctl start nginx
+
+Q) apache site (apache2):
+
+$ sudo yum install httpd
+$ sudo nano /var/www/html/index.html
+$ sudo systemctl enable httpd.service
+$ sudo systemctl start httpd.service
+
+============
+Lambda + S3:
+============
+
+Q) S3-Lambda Demo (Copy File from Source S3 Bucket to Destination S3 Bucket)
+
+==========================================
+     AWS S3 + Lambda Setup Instructions
+==========================================
+
+
+1) Create S3 Buckets
+--------------------
+• Open AWS Console → Search for **S3**
+• Click **Create bucket**
+
+    Bucket name:  yourprn-source-bucket
+    Leave everything else as default
+
+• Click **Create bucket**
+
+• Repeat the same steps and create:
+
+    Bucket name:  yourprn-destination-bucket
+
+Note:
+• Bucket names must be globally unique.
+
+
+2) Create Lambda Function
+-------------------------
+• Open AWS Console → Search for **Lambda**
+• Click **Create function**
+
+    Function name:  my-lambda-s3-function
+    Runtime:        Python 3.12
+
+• Scroll to **Permissions**
+• Click **Change default execution role**
+• Select: **Create a new role with basic Lambda permissions**
+
+• Click **Create function**
+
+
+3) Add Lambda Code
+------------------
+• Go to the **Code** section
+• Delete existing code
+• Paste the code from the next slide
+• Click **Deploy**
+
+
+4) Update Lambda Execution Role Permissions
+-------------------------------------------
+• Still inside your Lambda function
+• Go to **Configuration → Permissions**
+• Click on the role name  
+  (Example: myLambdaFunction-role-6qhvpscu)
+
+• Click **Add permissions → Attach policies**
+• Search for: **AWSLambdaBasicExecutionRole**
+• Select it → **Add permissions**
+
+• Again click **Add permissions → Create inline policy**
+• Choose **JSON**
+• Paste the policy from the next slide  
+  (IMPORTANT: Change your source and destination bucket names)
+
+• Click **Next**
+• Policy name example:  
+      Lambda-S3-Permission-Policy
+• Click **Create policy**
+
+
+5) Create S3 Event Trigger
+--------------------------
+• Go to AWS Console → Search for **S3**
+• Open your **source bucket**
+
+• Go to **Properties**
+• Scroll to **Event notifications**
+• Click **Create event notification**
+
+    Event name: lambda-trigger
+    Events: Select **All object create events**
+    Destination: Choose **Lambda function**
+    Lambda function: select **my-lambda-s3-function**
+
+• Click **Save changes**
+
+
+6) Test the Setup
+-----------------
+• Upload 2–3 small files into your **source bucket**
+• Check your **destination bucket**
+• Files should automatically appear there
+
+
+7) Debug / Monitor
+------------------
+• Go to your Lambda function
+• Open the **Monitor** tab
+• Use Logs, Metrics, and Traces to debug
+
+
+====================
+vpc -> more wala dab -> 
+
+main motive 2 ec2 bnv ekla private de ekala publc de nginx/apache bnv and only
+ public na curl vhv
